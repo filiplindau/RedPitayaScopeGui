@@ -12,7 +12,7 @@ import time
 import socket
 
 class RedPitayaGui(QtGui.QWidget):
-    def __init__(self, parent = None):
+    def __init__(self, parent=None):
         QtGui.QWidget.__init__(self, parent)
         self.setLocale(QtCore.QLocale(QtCore.QLocale.English))
         self.layout = QtGui.QVBoxLayout(self)
@@ -29,6 +29,11 @@ class RedPitayaGui(QtGui.QWidget):
         self.trigLevelSpinbox.setMaximum(2)
         self.trigLevelSpinbox.setMinimum(-2)
         self.trigLevelSpinbox.editingFinished.connect(self.setTrigLevel)
+        self.trigDelaySpinbox = QtGui.QDoubleSpinBox()
+        self.trigDelaySpinbox.setDecimals(6)
+        self.trigDelaySpinbox.setMaximum(2000000)
+        self.trigDelaySpinbox.setMinimum(-2000000)
+        self.trigDelaySpinbox.editingFinished.connect(self.setTrigDelay)
         self.trigSourceCombobox = QtGui.QComboBox()
         self.trigSourceCombobox.addItem("Channel1")
         self.trigSourceCombobox.addItem("Channel2")
@@ -47,18 +52,20 @@ class RedPitayaGui(QtGui.QWidget):
         self.gridLayout.addWidget(self.decimationSpinbox, 1, 1)
         self.gridLayout.addWidget(QtGui.QLabel("Trigger level"), 2, 0)
         self.gridLayout.addWidget(self.trigLevelSpinbox, 2, 1)
-        self.gridLayout.addWidget(QtGui.QLabel("Trigger source"), 3, 0)
-        self.gridLayout.addWidget(self.trigSourceCombobox, 3, 1)
-        self.gridLayout.addWidget(QtGui.QLabel("Trigger mode"), 4, 0)
-        self.gridLayout.addWidget(self.trigModeCombobox, 4, 1)
-        self.gridLayout.addWidget(QtGui.QLabel("FPS"), 5, 0)
-        self.gridLayout.addWidget(self.fpsLabel, 5, 1)
+        self.gridLayout.addWidget(QtGui.QLabel("Trigger delay / us"), 3, 0)
+        self.gridLayout.addWidget(self.trigDelaySpinbox, 3, 1)
+        self.gridLayout.addWidget(QtGui.QLabel("Trigger source"), 4, 0)
+        self.gridLayout.addWidget(self.trigSourceCombobox, 4, 1)
+        self.gridLayout.addWidget(QtGui.QLabel("Trigger mode"), 5, 0)
+        self.gridLayout.addWidget(self.trigModeCombobox, 5, 1)
+        self.gridLayout.addWidget(QtGui.QLabel("FPS"), 6, 0)
+        self.gridLayout.addWidget(self.fpsLabel, 6, 1)
         
-        self.plotWidget = pq.PlotWidget(useOpenGL = True)
+        self.plotWidget = pq.PlotWidget(useOpenGL=True)
         self.plot1 = self.plotWidget.plot()
-        self.plot1.setPen((200,25,10))
+        self.plot1.setPen((200, 25, 10))
         self.plot2 = self.plotWidget.plot()
-        self.plot2.setPen((10,200,25))
+        self.plot2.setPen((10, 200, 25))
         self.plot1.antialiasing = True
         self.plotWidget.setAntialiasing(True)
 
@@ -68,7 +75,7 @@ class RedPitayaGui(QtGui.QWidget):
         print 'Connecting...'
         self.sock = socket.socket()
         print 'Socket created'
-        self.sock.connect(('192.168.1.108', 8888))
+        self.sock.connect(('130.235.94.96', 8888))
         print '...connected' 
         
         self.t0 = time.time()
@@ -82,21 +89,29 @@ class RedPitayaGui(QtGui.QWidget):
         
     def setRecordLength(self):
         self.lock.acquire()
-        msg = ''.join(('setRecordlength:',str(self.recordSpinbox.value())))
+        msg = ''.join(('setRecordlength:', str(self.recordSpinbox.value())))
         self.sendReceive(msg)
         self.lock.release()
 
     def setDecimation(self):
         self.lock.acquire()
-        msg = ''.join(('setDecimation:',str(self.decimationSpinbox.value())))
+        msg = ''.join(('setDecimation:', str(self.decimationSpinbox.value())))
         self.sendReceive(msg)
         self.lock.release()
 
     def setTrigLevel(self):
         self.lock.acquire()
-        msg = ''.join(('setTriggerLevel:',str(self.trigLevelSpinbox.value())))
+        msg = ''.join(('setTriggerLevel:', str(self.trigLevelSpinbox.value())))
         print msg
         self.sendReceive(msg)
+        self.lock.release()
+
+    def setTrigDelay(self):
+        self.lock.acquire()
+        msg = ''.join(('setTriggerDelay:', str(self.trigDelaySpinbox.value())))
+        print msg
+        ret = self.sendReceive(msg)
+        print 'Returned ', ret
         self.lock.release()
         
     def setTrigSource(self, index):
@@ -130,7 +145,7 @@ class RedPitayaGui(QtGui.QWidget):
             data = np.fromstring(sig1, dtype=np.float32)
             self.plot1.setData(y=data)
             t = time.time()
-            self.fpsLabel.setText("{:.2f}".format(1/(t-self.t0)))
+            self.fpsLabel.setText("{:.2f}".format(1 / (t - self.t0)))
             self.t0 = t
         self.lock.acquire()
         sig2 = self.sendReceive('getWaveform:1')
@@ -141,7 +156,7 @@ class RedPitayaGui(QtGui.QWidget):
 
        
 if __name__ == '__main__':
-    app=QtGui.QApplication(sys.argv)
-    myapp=RedPitayaGui()
+    app = QtGui.QApplication(sys.argv)
+    myapp = RedPitayaGui()
     myapp.show()
     sys.exit(app.exec_())   
